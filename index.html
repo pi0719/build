@@ -115,24 +115,22 @@
             var canvas = document.querySelector("#unity-canvas");
             var loadingBar = document.querySelector("#unity-loading-bar");
             var progressBarFull = document.querySelector("#unity-progress-bar-full");
-        function preloadVideos() {
+        async function preloadVideos() {
             console.log("[VideoPreload] 영상 사전 로드 시작...");
             for (let i = 1; i <= 15; i++) {
                 const filename = String(i).padStart(2, '0') + '.mp4';
                 const url = `StreamingAssets/${filename}`;
-                fetch(url)
-                    .then(response => {
-                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                        return response.blob();
-                    })
-                    .then(blob => {
-                        const sizeMB = (blob.size / 1024 / 1024).toFixed(2);
-                        console.log(`[VideoPreload] ✅ ${filename} 캐시 완료 (${sizeMB}MB)`);
-                    })
-                    .catch(err => {
-                        console.warn(`[VideoPreload] ❌ ${filename} 실패: ${err.message}`);
-                    });
+                try {
+                    const response = await fetch(url, { cache: 'reload' });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const blob = await response.blob();
+                    const sizeMB = (blob.size / 1024 / 1024).toFixed(2);
+                    console.log(`[VideoPreload] ✅ ${filename} 캐시 완료 (${sizeMB}MB)`);
+                } catch (err) {
+                    console.warn(`[VideoPreload] ❌ ${filename} 실패: ${err.message}`);
+                }
             }
+            console.log("[VideoPreload] 🎉 전체 사전 로드 완료!");
         }
             function StartAR() {
                 canvas.style.width = window.innerWidth + "px";
