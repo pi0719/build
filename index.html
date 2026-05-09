@@ -119,16 +119,19 @@
             console.log("[VideoPreload] 영상 사전 로드 시작...");
             for (let i = 1; i <= 15; i++) {
                 const filename = String(i).padStart(2, '0') + '.mp4';
-                const video = document.createElement('video');
-                video.src = `StreamingAssets/${filename}`;
-                video.preload = 'auto';
-                video.muted = true;
-                video.style.display = 'none';
-                video.addEventListener('loadeddata', () =>
-                    console.log(`[VideoPreload] ✅ ${filename} 로드 완료`));
-                video.addEventListener('error', () =>
-                    console.warn(`[VideoPreload] ❌ ${filename} 실패`));
-                document.body.appendChild(video);
+                const url = `StreamingAssets/${filename}`;
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        return response.blob();
+                    })
+                    .then(blob => {
+                        const sizeMB = (blob.size / 1024 / 1024).toFixed(2);
+                        console.log(`[VideoPreload] ✅ ${filename} 캐시 완료 (${sizeMB}MB)`);
+                    })
+                    .catch(err => {
+                        console.warn(`[VideoPreload] ❌ ${filename} 실패: ${err.message}`);
+                    });
             }
         }
             function StartAR() {
