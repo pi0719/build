@@ -115,6 +115,22 @@
             var canvas = document.querySelector("#unity-canvas");
             var loadingBar = document.querySelector("#unity-loading-bar");
             var progressBarFull = document.querySelector("#unity-progress-bar-full");
+        function preloadVideos() {
+            console.log("[VideoPreload] 영상 사전 로드 시작...");
+            for (let i = 1; i <= 15; i++) {
+                const filename = String(i).padStart(2, '0') + '.mp4';
+                const video = document.createElement('video');
+                video.src = `StreamingAssets/${filename}`;
+                video.preload = 'auto';
+                video.muted = true;
+                video.style.display = 'none';
+                video.addEventListener('loadeddata', () =>
+                    console.log(`[VideoPreload] ✅ ${filename} 로드 완료`));
+                video.addEventListener('error', () =>
+                    console.warn(`[VideoPreload] ❌ ${filename} 실패`));
+                document.body.appendChild(video);
+            }
+        }
             function StartAR() {
                 canvas.style.width = window.innerWidth + "px";
                 canvas.style.height = window.innerHeight + "px";
@@ -140,6 +156,7 @@
                     if(window.permissionsGranted)
                         RequestWebcam();
                     loadingBar.style.display = "none";
+                    preloadVideos();
                 });
                 loadingBar.style.display = "block";
             }
