@@ -30,6 +30,44 @@
             background: #fffa;
             z-index: 99;
         }
+        /* === 북촌 한옥 프로젝트 커스텀 스타일 === */
+        /* 카메라 선택 드롭다운 영구 숨김 (JS가 다시 보이게 해도 막힘) */
+        #chooseCamSel {
+            display: none !important;
+        }
+        /* 로고 */
+        .bukchon-logo {
+            width: 140px;
+            height: auto;
+            margin-bottom: 28px;
+        }
+        /* 안내 문구 */
+        #startARDiv p {
+            text-align: center;
+            width: 75vw;
+            max-width: 380px;
+            font-size: 16px;
+            line-height: 1.7;
+            color: #2c2c2c;
+            margin: 0 0 28px 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+        }
+        /* 카메라 허용 버튼 */
+        #startARButton {
+            background: #2c2c2c;
+            color: #ffffff;
+            border: none;
+            padding: 14px 36px;
+            border-radius: 999px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+            transition: background 0.15s;
+        }
+            #startARButton:active {
+                background: #555;
+            }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
     <script>eruda.init();</script>
@@ -55,9 +93,10 @@
     <video id="webcam-video" muted autoplay playsinline style="width:1px;position:absolute"></video>
     <canvas id="video-canvas" style="width:100%; height:100%; object-fit:cover; position:absolute"></canvas>
     <div id="startARDiv" class="ctaDiv">
+        <img src="TemplateData/logo.png" alt="북촌 한옥 프로젝트" class="bukchon-logo">
         <select id="chooseCamSel" style="display: none;" onchange="SelectCam()"></select>
-        <p style="text-align: center; width:60vw;">This augmented reality experience requires access to your device's camera</p>
-        <button id="startARButton" onclick="StartAR()" style="display:none">ALLOW ACCESS</button>
+        <p>북촌 한옥 프로젝트에 오신걸 환영합니다.<br>관람을 위해 아래 버튼을 눌러주세요</p>
+        <button id="startARButton" onclick="StartAR()" style="display:none">카메라 허용</button>
     </div>
     <div id="screenshotDiv" style="display: none;" class="ctaDiv">
         <div style="position:relative; background-color:white; padding:10px; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.25);">
@@ -105,7 +144,6 @@
                     ShowError("Failed to initialize the experience.");
                     return;
                 }
-                
                 await LoadWebcams();
                 document.getElementById("startARButton").style.display = "block";
                 window.permissionsGranted = IsCameraPermissionGranted();
@@ -135,7 +173,6 @@
             function StartAR() {
                 canvas.style.width = window.innerWidth + "px";
                 canvas.style.height = window.innerHeight + "px";
-                
                 document.getElementById("startARDiv").style.display = "none";
                 createUnityInstance(document.querySelector("#unity-canvas"), {
                     dataUrl: "Build/build.data",
@@ -186,11 +223,11 @@
                     console.error("getUserMedia error - " , err);
                     ShowError("Failed to start the experience. Camera permission was denied");
                     window.requestingForPermissions = false;
-                }           
+                }
             }
             function StopWebcam(){
                 console.log("stopping camera");
-                window.webcamStream.getTracks().forEach(track => track.stop());    
+                window.webcamStream.getTracks().forEach(track => track.stop());
             }
             async function StartWebcam(){
                 console.log("StartWebcam")
@@ -213,12 +250,12 @@
                     catch(err){
                         console.error("Webcam failed to start - ", err);
                         window.unityInstance.SendMessage('ARCamera', 'OnStartWebcamFail');
-                    }   
+                    }
                 }
                 else{
                     console.error("Webcam failed to start - permission not yet granted");
                     window.unityInstance.SendMessage('ARCamera', 'OnStartWebcamFail');
-                }  
+                }
             }
             async function LoadWebcams(){
                 let camDevices = [];
@@ -238,8 +275,7 @@
                         else{
                             //back and front
                             camDevices.push(mediaDevice);
-                        }   
-                        
+                        }
                         ctr++;
                     }
                 });
@@ -322,13 +358,12 @@
             function ShowConfirmUrl(url){
                 document.getElementById("confirmUrlDiv").style.display = "flex";
                 window.newUrlString = url;
-                document.getElementById("confirmUrlText").innerText = "Are you sure you want to visit " + url;                
+                document.getElementById("confirmUrlText").innerText = "Are you sure you want to visit " + url;
             }
             window.ITRACKER_GLOBALS = {
                 //place global settings here
                 INTERNAL_SMOOTHFACTOR_POS: .075,
             }
-            
     </script>
 </body>
 </html>
