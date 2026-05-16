@@ -67,6 +67,37 @@
     </style>
     <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
     <script>eruda.init();</script>
+    <script>
+        // ============================================
+        // 백그라운드 복귀 감지 → 자동 새로고침
+        // iOS Safari가 백그라운드에서 WebGL/카메라 컨텍스트를 망가뜨리는
+        // 문제 대응. 1.5초 이상 백그라운드였다가 돌아오면 fresh 상태로 리셋.
+        // ============================================
+        (function () {
+            let _bgTimestamp = 0;
+            const RELOAD_THRESHOLD_MS = 1500;
+            document.addEventListener('visibilitychange', function () {
+                if (document.visibilityState === 'hidden') {
+                    _bgTimestamp = Date.now();
+                    console.log('[VisibilityReset] 백그라운드 진입');
+                } else if (document.visibilityState === 'visible' && _bgTimestamp > 0) {
+                    const elapsedMs = Date.now() - _bgTimestamp;
+                    console.log(`[VisibilityReset] 복귀 (백그라운드 ${elapsedMs}ms)`);
+                    if (elapsedMs > RELOAD_THRESHOLD_MS) {
+                        console.log('[VisibilityReset] → 새로고침');
+                        location.reload();
+                    }
+                }
+            });
+            // pageshow 이벤트 (iOS Safari가 bfcache로 복원할 때)
+            window.addEventListener('pageshow', function (e) {
+                if (e.persisted) {
+                    console.log('[VisibilityReset] bfcache 복원 감지 → 새로고침');
+                    location.reload();
+                }
+            });
+        })();
+    </script>
 </head>
 <body>
     <!--IMAGETARGETS-->
@@ -166,57 +197,7 @@
             }
             console.log("[VideoPreload] 🎉 전체 사전 로드 완료!");
         }
-        // ============================================
-        // iOS Safari 오토플레이 unlock
-        // ============================================
-        async function unlockMediaPlayback() {
-            try {
-                // 1. Audio Context unlock (Unity 오디오 시스템 깨우기)
-                const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                if (AudioCtx) {
-                    if (!window._unlockCtx) {
-                        window._unlockCtx = new AudioCtx();
-                    }
-                    if (window._unlockCtx.state === 'suspended') {
-                        await window._unlockCtx.resume();
-                    }
-                    // 무음 버퍼 재생으로 완전히 unlock
-                    const buffer = window._unlockCtx.createBuffer(1, 1, 22050);
-                    const source = window._unlockCtx.createBufferSource();
-                    source.buffer = buffer;
-                    source.connect(window._unlockCtx.destination);
-                    source.start(0);
-                }
-                // 2. HTML5 video element 미리 활성화 (보이지 않는 더미 비디오)
-                const dummy = document.createElement('video');
-                dummy.muted = true;
-                dummy.playsInline = true;
-                dummy.setAttribute('webkit-playsinline', '');
-                dummy.src = 'StreamingAssets/01.mp4';
-                dummy.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';
-                document.body.appendChild(dummy);
-                try {
-                    await dummy.play();
-                    await new Promise(r => setTimeout(r, 100));
-                    dummy.pause();
-                } catch (e) {
-                    console.warn("[MediaUnlock] dummy play failed:", e);
-                }
-                setTimeout(() => dummy.remove(), 500);
-                console.log("[MediaUnlock] ✅ iOS 오토플레이 unlock 완료");
-            } catch (e) {
-                console.warn("[MediaUnlock] Failed:", e);
-            }
-        }
-        // 페이지에서 터치가 일어날 때마다 audio context 살아있게 유지
-        document.addEventListener('touchend', function() {
-            if (window._unlockCtx && window._unlockCtx.state === 'suspended') {
-                window._unlockCtx.resume().catch(() => {});
-            }
-        }, { passive: true });
             function StartAR() {
-                // ⭐ iOS 오토플레이 unlock (사용자 제스처 안에서 실행 필수)
-                unlockMediaPlayback();
                 canvas.style.width = window.innerWidth + "px";
                 canvas.style.height = window.innerHeight + "px";
                 document.getElementById("startARDiv").style.display = "none";
