@@ -5,6 +5,70 @@
     <meta name="viewport" content='width=device-width, height=device-height, initial-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=yes'>
     <title>Unity WebGL Player | Bukchon_AR795_3</title>
     <link rel="stylesheet" href="TemplateData/style.css">
+    <script>
+        // ============================================
+        // [최우선 실행] Unity가 만드는 모든 <video> element 강제 muted
+        // iOS Safari 자동재생 정책 우회. Unity의 Audio Output Mode 설정과 무관하게
+        // HTML5 video element 차원에서 muted 보장.
+        // ============================================
+        (function () {
+            // 1. document.createElement 패치: 만들어지는 즉시 muted
+            const _origCreate = document.createElement.bind(document);
+            document.createElement = function (tagName, options) {
+                const el = _origCreate(tagName, options);
+                if (tagName && typeof tagName === 'string' && tagName.toLowerCase() === 'video') {
+                    try {
+                        el.muted = true;
+                        el.defaultMuted = true;
+                        el.volume = 0;
+                        el.playsInline = true;
+                        el.setAttribute('muted', '');
+                        el.setAttribute('playsinline', '');
+                        el.setAttribute('webkit-playsinline', '');
+                        console.log('[VideoMute] createElement video auto-muted');
+                    } catch (e) {
+                        console.warn('[VideoMute] createElement patch failed:', e);
+                    }
+                }
+                return el;
+            };
+            // 2. MutationObserver: createElement 우회로 생성되는 video도 잡기
+            const muteIfVideo = (node) => {
+                if (!node) return;
+                if (node.nodeName === 'VIDEO' && node.id !== 'webcam-video') {
+                    try {
+                        node.muted = true;
+                        node.defaultMuted = true;
+                        node.volume = 0;
+                        node.setAttribute('muted', '');
+                    } catch (e) { }
+                }
+                if (node.querySelectorAll) {
+                    node.querySelectorAll('video').forEach(v => {
+                        if (v.id !== 'webcam-video') {
+                            try {
+                                v.muted = true;
+                                v.defaultMuted = true;
+                                v.volume = 0;
+                                v.setAttribute('muted', '');
+                            } catch (e) { }
+                        }
+                    });
+                }
+            };
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach(m => m.addedNodes.forEach(muteIfVideo));
+            });
+            const startObserving = () => {
+                if (document.body) {
+                    observer.observe(document.body, { childList: true, subtree: true });
+                } else {
+                    setTimeout(startObserving, 10);
+                }
+            };
+            startObserving();
+        })();
+    </script>
     <style>
         html {
             height: -webkit-fill-available;
@@ -70,8 +134,6 @@
     <script>
         // ============================================
         // 백그라운드 복귀 감지 → 자동 새로고침
-        // iOS Safari가 백그라운드에서 WebGL/카메라 컨텍스트를 망가뜨리는
-        // 문제 대응. 1.5초 이상 백그라운드였다가 돌아오면 fresh 상태로 리셋.
         // ============================================
         (function () {
             let _bgTimestamp = 0;
@@ -89,7 +151,6 @@
                     }
                 }
             });
-            // pageshow 이벤트 (iOS Safari가 bfcache로 복원할 때)
             window.addEventListener('pageshow', function (e) {
                 if (e.persisted) {
                     console.log('[VisibilityReset] bfcache 복원 감지 → 새로고침');
