@@ -6,7 +6,7 @@
     <title>Unity WebGL Player | Bukchon_AR795_3</title>
     <link rel="stylesheet" href="TemplateData/style.css">
     <script>
-        // Unity가 만드는 모든 <video> element 강제 muted
+        // Unity가 만드는 모든 <video> element 강제 muted + play() 로그
         (function () {
             const _origCreate = document.createElement.bind(document);
             document.createElement = function (tagName, options) {
@@ -61,6 +61,36 @@
                 }
             };
             startObserving();
+            // ============================================
+            // play() 진단 패치: 어떤 오류로 실패하는지 로그
+            // ============================================
+            const _origPlay = HTMLVideoElement.prototype.play;
+            HTMLVideoElement.prototype.play = function () {
+                const result = _origPlay.apply(this, arguments);
+                if (result && typeof result.then === 'function') {
+                    return result.catch((err) => {
+                        if (this.id !== 'webcam-video') {
+                            console.warn('[VideoPlay FAIL]', err.name + ':', err.message, '| muted=', this.muted, 'src=', (this.src || '').slice(-15));
+                        }
+                        throw err;
+                    });
+                }
+                return result;
+            };
+            // ============================================
+            // 전역 touchstart: 어디든 탭하면 모든 멈춘 영상 재생 시도
+            // (iOS 기본 패턴 - 한번 탭하면 그 세션 전체 unlock)
+            // ============================================
+            const tryPlayAll = () => {
+                document.querySelectorAll('video').forEach(v => {
+                    if (v.id !== 'webcam-video' && v.paused && v.src) {
+                        const p = v.play();
+                        if (p && p.catch) p.catch(() => { });
+                    }
+                });
+            };
+            document.addEventListener('touchstart', tryPlayAll, { passive: true });
+            document.addEventListener('click', tryPlayAll, { passive: true });
         })();
     </script>
     <style>
@@ -77,7 +107,6 @@
             min-height: 100dvh;
             min-height: -webkit-fill-available;
         }
-        /* === Unity 캔버스 및 컨테이너 강제 풀스크린 === */
         #unity-container {
             position: fixed !important;
             top: 0 !important;
@@ -113,7 +142,6 @@
             transform: translate(-50%, -50%) !important;
             z-index: 50 !important;
         }
-        /* === ctaDiv: 환영 화면 등 모달 (viewport 고정) === */
         .ctaDiv {
             display: flex;
             flex-direction: column;
@@ -165,7 +193,6 @@
             #startARButton:active {
                 background: #555;
             }
-        /* === AR 시작 오버레이 (별도 클래스 사용 - 충돌 방지) === */
         .ar-start-overlay {
             display: none;
             position: fixed;
@@ -203,7 +230,6 @@
                 transform: scale(0.96);
                 box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
             }
-        /* === Unity 로딩 화면 로고 === */
         #unity-logo {
             background-image: url('TemplateData/logo.png') !important;
             background-size: contain !important;
@@ -216,7 +242,6 @@
     <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
     <script>eruda.init();</script>
     <script>
-        // 백그라운드 복귀 자동 새로고침
         (function () {
             let _bgTimestamp = 0;
             const RELOAD_THRESHOLD_MS = 1500;
@@ -258,14 +283,12 @@
 
     <video id="webcam-video" muted autoplay playsinline style="width:1px;position:absolute"></video>
     <canvas id="video-canvas" style="width:100%; height:100%; object-fit:cover; position:absolute"></canvas>
-    <!-- 1단계: 환영 화면 -->
     <div id="startARDiv" class="ctaDiv">
         <img src="TemplateData/logo.png" alt="북촌 한옥 프로젝트" class="bukchon-logo">
         <select id="chooseCamSel" style="display: none;" onchange="SelectCam()"></select>
         <p>북촌 한옥 프로젝트에 오신걸 환영합니다.<br>관람을 위해 아래 버튼을 눌러주세요</p>
         <button id="startARButton" onclick="StartAR()" style="display:none">카메라 허용</button>
     </div>
-    <!-- 2단계: AR 시작 오버레이 -->
     <div id="startARDiv2" class="ar-start-overlay">
         <button id="startARButton2" onclick="StartARExperience()">AR 시작</button>
     </div>
@@ -342,7 +365,6 @@
             console.log("[VideoPreload] 🎉 전체 사전 로드 완료!");
         }
             function StartAR() {
-                // CSS가 강제로 100vw/100vh로 설정하므로 인라인 사이즈는 안 지정
                 document.getElementById("startARDiv").style.display = "none";
                 createUnityInstance(document.querySelector("#unity-canvas"), {
                     dataUrl: "Build/build.data",
@@ -352,9 +374,6 @@
                     companyName: "DefaultCompany",
                     productName: "Bukchon_AR795_3",
                     productVersion: "0.1",
-                    //webglContextAttributes: { "preserveDrawingBuffer": true },
-                    // matchWebGLToCanvasSize: false, // Uncomment this to separately control WebGL canvas render size and DOM element size.
-                    // devicePixelRatio: 1, // Uncomment this to override low DPI rendering on high DPI displays.
                     },
                     (progress) => {
                         progressBarFull.style.width = 100 * progress + "%";
@@ -368,22 +387,50 @@
                 });
                 loadingBar.style.display = "block";
             }
-            // "AR 시작" 버튼 클릭 - fresh user gesture
             function StartARExperience() {
                 console.log("[StartARExperience] User clicked AR 시작 — fresh gesture");
                 document.getElementById('startARDiv2').classList.remove('show');
+                // === Dummy video element 만들어서 play() 시도 ===
+                // 이게 성공하면 iOS document-level video 권한 unlock됨
+                // (Unity가 나중에 만드는 element도 영향 받기를 기대)
+                try {
+                    const dummy = document.createElement('video');
+                    dummy.muted = true;
+                    dummy.playsInline = true;
+                    dummy.setAttribute('muted', '');
+                    dummy.setAttribute('playsinline', '');
+                    dummy.setAttribute('webkit-playsinline', '');
+                    dummy.src = 'StreamingAssets/01.mp4';
+                    dummy.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';
+                    document.body.appendChild(dummy);
+                    const playPromise = dummy.play();
+                    if (playPromise) {
+                        playPromise.then(() => {
+                            console.log('[Prewarm] ✅ dummy unlock succeeded — iOS video permission unlocked');
+                            setTimeout(() => {
+                                try {
+                                    dummy.pause();
+                                    dummy.remove();
+                                } catch (e) {}
+                            }, 200);
+                        }).catch(err => {
+                            console.warn('[Prewarm] ❌ dummy unlock FAILED:', err.name, err.message);
+                            try { dummy.remove(); } catch (e) {}
+                        });
+                    }
+                } catch (e) {
+                    console.warn('[Prewarm] exception:', e);
+                }
+                // 기존 video element도 play 시도
                 document.querySelectorAll('video').forEach(v => {
                     if (v.id !== 'webcam-video') {
                         const playPromise = v.play();
                         if (playPromise) {
-                            playPromise.catch(err => {
-                                console.warn('[StartARExperience] play attempt failed:', err);
-                            });
+                            playPromise.catch(err => {});
                         }
                     }
                 });
             }
-            //Set Facing Mode here ('environment', 'user', '')
 		window.unityFacingMode = "environment"
             window.WEBCAM_SETTINGS = {
                 video: {
@@ -400,11 +447,9 @@
                     window.webcamStream = await navigator.mediaDevices.getUserMedia(window.WEBCAM_SETTINGS);
                     console.log("Webcam access granted");
                     requestingForPermissions = false;
-                    // Immediately stop the stream to release the camera
                     StopWebcam();
                 }
                 catch (err) {
-                    //user denied camera permission - show error panel
                     console.error("getUserMedia error - " , err);
                     ShowError("Failed to start the experience. Camera permission was denied");
                     window.requestingForPermissions = false;
@@ -418,9 +463,8 @@
                 console.log("StartWebcam")
                 window.webcamStream = await navigator.mediaDevices.getUserMedia(window.WEBCAM_SETTINGS);
                 while (window.requestingForPermissions) {
-                    // Wait until requestingForPermissions becomes true.
                     console.log("Waiting for permissions...");
-                    await new Promise(resolve => setTimeout(resolve, 100)); // Adjust the delay time as needed.
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
                 console.log("Got Permissions");
                 if(window.webcamStream)
@@ -430,7 +474,6 @@
                     try {
                         await arCamera.startWebcam(video);
                         console.log("Webcam started successfully");
-                        // 카메라 시작 완료 → "AR 시작" 오버레이 표시
                         document.getElementById('startARDiv2').classList.add('show');
                         window.unityInstance.SendMessage('ARCamera', 'OnStartWebcamSuccess');
                     }
@@ -446,21 +489,17 @@
             }
             async function LoadWebcams(){
                 let camDevices = [];
-                // let backCams = [];
                 let devices = await navigator.mediaDevices.enumerateDevices();
                 var ctr = 0;
                 devices.forEach(mediaDevice => {
                     if (mediaDevice.kind === 'videoinput') {
                         if(window.unityFacingMode == 'environment' && !mediaDevice.label.includes('facing front')){
-                            //back cam only
                             camDevices.push(mediaDevice);
                         }
                         else if(window.unityFacingMode == 'user' && mediaDevice.label.includes('facing front')){
-                            //front cam only
                             camDevices.push(mediaDevice);
                         }
                         else{
-                            //back and front
                             camDevices.push(mediaDevice);
                         }
                         ctr++;
@@ -469,8 +508,6 @@
                 var select = document.getElementById("chooseCamSel");
                 select.style.display = "block";
                 var count = 0;
-                //reverse array because some Android phones can't distinguish front and back cams at first load
-                //and when this happens, most of the time, front cam goes first and back cam goes last
                 camDevices = camDevices.reverse();
                 camDevices.forEach(mediaDevice => {
                     const option = document.createElement('option');
@@ -490,7 +527,6 @@
                 var select = document.getElementById("chooseCamSel");
                 window.deviceId = select.value;
                 window.WEBCAM_SETTINGS.video['deviceId'] = deviceId;
-                //console.log(window.WEBCAM_SETTINGS);
                 iTracker.WEBCAM_NAME = select.options[select.selectedIndex].innerHTML;
             }
             async function FlipCam(){
@@ -511,24 +547,18 @@
             }
             async function IsCameraPermissionGranted() {
                 if (!navigator.permissions || !navigator.mediaDevices) {
-                    console.log("Permissions API or mediaDevices not supported.");
                     return false;
                 }
                 try {
-                    // Query the status of the camera permission
                     const permissionStatus = await navigator.permissions.query({ name: "camera" });
                     if (permissionStatus.state === "granted") {
-                    console.log("Camera permission has already been granted.");
                     return true;
                     } else if (permissionStatus.state === "prompt") {
-                    console.log("Camera permission is promptable.");
                     return false;
                     } else {
-                    console.log("Camera permission has been denied.");
                     return false;
                     }
                 } catch (error) {
-                    console.log("Error checking camera permission:", error);
                     return false;
                 }
             }
@@ -548,7 +578,6 @@
                 document.getElementById("confirmUrlText").innerText = "Are you sure you want to visit " + url;
             }
             window.ITRACKER_GLOBALS = {
-                //place global settings here
                 INTERNAL_SMOOTHFACTOR_POS: .075,
             }
     </script>
