@@ -7,10 +7,9 @@
     <link rel="stylesheet" href="TemplateData/style.css">
     <script>
         // ============================================
-        // [최우선 실행] Unity가 만드는 모든 <video> element 강제 muted
+        // Unity가 만드는 모든 <video> element 강제 muted
         // ============================================
         (function () {
-            // 1. document.createElement 패치: 만들어지는 즉시 muted
             const _origCreate = document.createElement.bind(document);
             document.createElement = function (tagName, options) {
                 const el = _origCreate(tagName, options);
@@ -25,12 +24,11 @@
                         el.setAttribute('webkit-playsinline', '');
                         console.log('[VideoMute] createElement video auto-muted');
                     } catch (e) {
-                        console.warn('[VideoMute] createElement patch failed:', e);
+                        console.warn('[VideoMute] patch failed:', e);
                     }
                 }
                 return el;
             };
-            // 2. MutationObserver: createElement 우회로 생성되는 video도 잡기
             const muteIfVideo = (node) => {
                 if (!node) return;
                 if (node.nodeName === 'VIDEO' && node.id !== 'webcam-video') {
@@ -126,6 +124,28 @@
             #startARButton:active {
                 background: #555;
             }
+        /* === AR 시작 오버레이 (카메라 위에 검은 반투명 + 버튼) === */
+        #startARDiv2 {
+            background: rgba(0, 0, 0, 0.6) !important;
+            z-index: 90; /* 카메라보다 위, 다른 모달보다는 아래 */
+        }
+        #startARButton2 {
+            background: #ffffff;
+            color: #1a1a1a;
+            border: none;
+            padding: 18px 44px;
+            border-radius: 999px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+            #startARButton2:active {
+                transform: scale(0.96);
+                box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+            }
         /* === Unity 로딩 화면 로고 교체 === */
         #unity-logo {
             background-image: url('TemplateData/logo.png') !important;
@@ -165,29 +185,34 @@
 </head>
 <body>
     <!--IMAGETARGETS-->
-		<imagetarget id='01' src='targets/1_금박공방.jpg'></imagetarget>
-		<imagetarget id='02' src='targets/2_단청공방.jpg'></imagetarget>
-		<imagetarget id='03' src='targets/3_동림매듭공방.jpg'></imagetarget>
-		<imagetarget id='04' src='targets/4_배렴가옥.jpg'></imagetarget>
-		<imagetarget id='05' src='targets/5_북촌라운지.jpg'></imagetarget>
-		<imagetarget id='06' src='targets/6_북촌문화센터.jpg'></imagetarget>
-		<imagetarget id='07' src='targets/7_북촌빈관.jpg'></imagetarget>
-		<imagetarget id='08' src='targets/8_북촌전통공예체험관.jpg'></imagetarget>
-		<imagetarget id='09' src='targets/9_색실문양누비공방.jpg'></imagetarget>
-		<imagetarget id='10' src='targets/10_서촌라운지 1.jpg'></imagetarget>
-		<imagetarget id='11' src='targets/포차코01.jpg'></imagetarget>
-		<imagetarget id='12' src='targets/12_전통발효공방_02.jpg'></imagetarget>
-		<imagetarget id='13' src='targets/13_전통홍염공방 1.jpg'></imagetarget>
-		<imagetarget id='14' src='targets/14_직물놀이공방 1.jpg'></imagetarget>
-		<imagetarget id='15' src='targets/15_홍건익가옥 1.jpg'></imagetarget>
+		<imagetarget id='01' src='targets/01_금박공방_Color.jpg'></imagetarget>
+		<imagetarget id='02' src='targets/02_단청공방_Color.jpg'></imagetarget>
+		<imagetarget id='03' src='targets/03_동림매듭공방_Color.jpg'></imagetarget>
+		<imagetarget id='04' src='targets/04_배렴가옥_Color.jpg'></imagetarget>
+		<imagetarget id='05' src='targets/05_북촌라운지_Color.jpg'></imagetarget>
+		<imagetarget id='06' src='targets/06_북촌문화센터_Color.jpg'></imagetarget>
+		<imagetarget id='07' src='targets/07_북촌빈관_Color.jpg'></imagetarget>
+		<imagetarget id='08' src='targets/08_북촌전통공예체험관_Color.jpg'></imagetarget>
+		<imagetarget id='09' src='targets/09_색실문양누비공방_Color.jpg'></imagetarget>
+		<imagetarget id='10' src='targets/10_서촌라운지_Color.jpg'></imagetarget>
+		<imagetarget id='11' src='targets/11_서촌스테이_Color.jpg'></imagetarget>
+		<imagetarget id='12' src='targets/12_전통발효공방_Color.jpg'></imagetarget>
+		<imagetarget id='13' src='targets/13_전통홍염공방_Color.jpg'></imagetarget>
+		<imagetarget id='14' src='targets/14_직물놀이공방_Color.jpg'></imagetarget>
+		<imagetarget id='15' src='targets/15_홍건익가옥_Color.jpg'></imagetarget>
 
     <video id="webcam-video" muted autoplay playsinline style="width:1px;position:absolute"></video>
     <canvas id="video-canvas" style="width:100%; height:100%; object-fit:cover; position:absolute"></canvas>
+    <!-- 1단계: 환영 화면 -->
     <div id="startARDiv" class="ctaDiv">
         <img src="TemplateData/logo.png" alt="북촌 한옥 프로젝트" class="bukchon-logo">
         <select id="chooseCamSel" style="display: none;" onchange="SelectCam()"></select>
         <p>북촌 한옥 프로젝트에 오신걸 환영합니다.<br>관람을 위해 아래 버튼을 눌러주세요</p>
         <button id="startARButton" onclick="StartAR()" style="display:none">카메라 허용</button>
+    </div>
+    <!-- 2단계: AR 시작 오버레이 (카메라 실행 후 표시) -->
+    <div id="startARDiv2" class="ctaDiv" style="display: none;">
+        <button id="startARButton2" onclick="StartARExperience()">AR 시작</button>
     </div>
     <div id="screenshotDiv" style="display: none;" class="ctaDiv">
         <div style="position:relative; background-color:white; padding:10px; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.25);">
@@ -289,6 +314,28 @@
                 });
                 loadingBar.style.display = "block";
             }
+            // ============================================
+            // "AR 시작" 버튼 클릭 — fresh user gesture
+            // 이 클릭이 iOS Safari의 새 user gesture가 되어
+            // 영상 자동재생을 unlock합니다
+            // ============================================
+            function StartARExperience() {
+                console.log("[StartARExperience] User clicked AR 시작 — fresh gesture");
+                // 오버레이 숨김
+                document.getElementById('startARDiv2').style.display = 'none';
+                // 현재 활성화된 모든 video element를 force-play
+                // (user gesture context 안에 있으므로 iOS가 허용)
+                document.querySelectorAll('video').forEach(v => {
+                    if (v.id !== 'webcam-video') {
+                        const playPromise = v.play();
+                        if (playPromise) {
+                            playPromise.catch(err => {
+                                console.warn('[StartARExperience] play attempt failed:', err);
+                            });
+                        }
+                    }
+                });
+            }
             //Set Facing Mode here ('environment', 'user', '')
 		window.unityFacingMode = "environment"
             window.WEBCAM_SETTINGS = {
@@ -336,6 +383,9 @@
                     try {
                         await arCamera.startWebcam(video);
                         console.log("Webcam started successfully");
+                        // 카메라 시작 완료 → "AR 시작" 오버레이 표시
+                        const overlay = document.getElementById('startARDiv2');
+                        if (overlay) overlay.style.display = 'flex';
                         window.unityInstance.SendMessage('ARCamera', 'OnStartWebcamSuccess');
                     }
                     catch(err){
