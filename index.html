@@ -435,8 +435,9 @@
             window.WEBCAM_SETTINGS = {
                 video: {
         facingMode: unityFacingMode,
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
+        width: { ideal: 3840, min: 1920 },
+        height: { ideal: 2160, min: 1080 },
+        frameRate: { ideal: 60, max: 60 }
     },
                 audio: false
             };
@@ -446,11 +447,19 @@
                     const v = document.querySelector("#webcam-video");
                     if (v && v.videoWidth > 0) {
                         console.log(`[Webcam] Actual resolution: ${v.videoWidth} x ${v.videoHeight}`);
+                        // 실제 track 정보도 출력
+                        if (window.webcamStream) {
+                            const track = window.webcamStream.getVideoTracks()[0];
+                            if (track) {
+                                const settings = track.getSettings();
+                                console.log(`[Webcam] Track settings:`, JSON.stringify(settings));
+                            }
+                        }
                     } else {
                         setTimeout(checkRes, 500);
                     }
                 };
-                setTimeout(checkRes, 1000);
+                setTimeout(checkRes, 2000);
             });
             window.requestingForPermissions = false;
             async function RequestWebcam(){
