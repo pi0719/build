@@ -2,13 +2,11 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content='width=device-width, height=device-height, initial-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=yes'>
+    <meta name="viewport" content='width=device-width, height=device-height, initial-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=yes, viewport-fit=cover'>
     <title>Unity WebGL Player | Bukchon_AR795_3</title>
     <link rel="stylesheet" href="TemplateData/style.css">
     <script>
-        // ============================================
         // Unity가 만드는 모든 <video> element 강제 muted
-        // ============================================
         (function () {
             const _origCreate = document.createElement.bind(document);
             document.createElement = function (tagName, options) {
@@ -66,31 +64,37 @@
         })();
     </script>
     <style>
-        html {
-            height: -webkit-fill-available;
-        }
-        body {
+        html, body {
             margin: 0;
             padding: 0;
-            min-height: 100vh;
-            min-height: -webkit-fill-available;
-            width: 100vw;
+            width: 100%;
+            height: 100%;
             overflow: hidden;
         }
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            min-height: -webkit-fill-available;
+        }
+        /* === ctaDiv: 환영 화면 등 모달 (viewport 고정) === */
         .ctaDiv {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            position: absolute;
+            position: fixed;
+            top: 0;
             left: 0;
             right: 0;
-            top: 0;
             bottom: 0;
             background: #fffa;
             z-index: 99;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+            box-sizing: border-box;
         }
-        /* === 북촌 한옥 프로젝트 커스텀 스타일 === */
         #chooseCamSel {
             display: none !important;
         }
@@ -124,11 +128,27 @@
             #startARButton:active {
                 background: #555;
             }
-        /* === AR 시작 오버레이 (카메라 위에 검은 반투명 + 버튼) === */
-        #startARDiv2 {
-            background: rgba(0, 0, 0, 0.6) !important;
-            z-index: 90; /* 카메라보다 위, 다른 모달보다는 아래 */
+        /* === AR 시작 오버레이 (ctaDiv 클래스 안 씀 - 충돌 방지) === */
+        .ar-start-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 90;
+            align-items: center;
+            justify-content: center;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+            box-sizing: border-box;
         }
+            .ar-start-overlay.show {
+                display: flex;
+            }
         #startARButton2 {
             background: #ffffff;
             color: #1a1a1a;
@@ -146,7 +166,7 @@
                 transform: scale(0.96);
                 box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
             }
-        /* === Unity 로딩 화면 로고 교체 === */
+        /* === Unity 로딩 화면 로고 === */
         #unity-logo {
             background-image: url('TemplateData/logo.png') !important;
             background-size: contain !important;
@@ -159,9 +179,7 @@
     <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
     <script>eruda.init();</script>
     <script>
-        // ============================================
-        // 백그라운드 복귀 감지 → 자동 새로고침
-        // ============================================
+        // 백그라운드 복귀 자동 새로고침
         (function () {
             let _bgTimestamp = 0;
             const RELOAD_THRESHOLD_MS = 1500;
@@ -210,8 +228,8 @@
         <p>북촌 한옥 프로젝트에 오신걸 환영합니다.<br>관람을 위해 아래 버튼을 눌러주세요</p>
         <button id="startARButton" onclick="StartAR()" style="display:none">카메라 허용</button>
     </div>
-    <!-- 2단계: AR 시작 오버레이 (카메라 실행 후 표시) -->
-    <div id="startARDiv2" class="ctaDiv" style="display: none;">
+    <!-- 2단계: AR 시작 오버레이 -->
+    <div id="startARDiv2" class="ar-start-overlay">
         <button id="startARButton2" onclick="StartARExperience()">AR 시작</button>
     </div>
     <div id="screenshotDiv" style="display: none;" class="ctaDiv">
@@ -314,17 +332,12 @@
                 });
                 loadingBar.style.display = "block";
             }
-            // ============================================
-            // "AR 시작" 버튼 클릭 — fresh user gesture
-            // 이 클릭이 iOS Safari의 새 user gesture가 되어
-            // 영상 자동재생을 unlock합니다
-            // ============================================
+            // "AR 시작" 버튼 클릭 - fresh user gesture
             function StartARExperience() {
                 console.log("[StartARExperience] User clicked AR 시작 — fresh gesture");
-                // 오버레이 숨김
-                document.getElementById('startARDiv2').style.display = 'none';
+                // 오버레이 숨김 (클래스 토글)
+                document.getElementById('startARDiv2').classList.remove('show');
                 // 현재 활성화된 모든 video element를 force-play
-                // (user gesture context 안에 있으므로 iOS가 허용)
                 document.querySelectorAll('video').forEach(v => {
                     if (v.id !== 'webcam-video') {
                         const playPromise = v.play();
@@ -384,8 +397,7 @@
                         await arCamera.startWebcam(video);
                         console.log("Webcam started successfully");
                         // 카메라 시작 완료 → "AR 시작" 오버레이 표시
-                        const overlay = document.getElementById('startARDiv2');
-                        if (overlay) overlay.style.display = 'flex';
+                        document.getElementById('startARDiv2').classList.add('show');
                         window.unityInstance.SendMessage('ARCamera', 'OnStartWebcamSuccess');
                     }
                     catch(err){
